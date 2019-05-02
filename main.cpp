@@ -18,6 +18,16 @@ int state = -1;
 std::vector<int> vhiscores;
 int lives, score;
 
+//sound buffers
+sf::SoundBuffer ExpBuffer;
+sf::SoundBuffer ExpBuffer2;
+sf::SoundBuffer LaserBuffer;
+
+//sound play
+sf::Sound Explosion;
+sf::Sound Explosion2;
+sf::Sound Laser;
+
 //fonts
 sf::Font font;
 sf::Text showScore;
@@ -140,12 +150,6 @@ public:
 
    void update()
    {
-    int maxSpeed=15;
-    float speed = sqrt(dx*dx+dy*dy);
-    if (speed>maxSpeed)
-     { dx *= maxSpeed/speed;
-       dy *= maxSpeed/speed; }
-
     x+=dx;
     y+=dy;
 
@@ -220,7 +224,7 @@ int main()
     app.setPosition(sf::Vector2i(200,0));
 
     //load textures
-    sf::Texture t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+    sf::Texture t1,t2,t3,t4,t5;
     t1.loadFromFile("images/asteroid.png");
     t2.loadFromFile("images/background.png");
     t3.loadFromFile("images/explosion.png");
@@ -242,6 +246,14 @@ int main()
     showScore.setCharacterSize(24);
     showScore.setPosition(450.f, 0.f);
     showScore.setFillColor(sf::Color::Cyan);
+
+    // Load sounds
+    ExpBuffer2.loadFromFile("sounds/Explosion+6.wav");
+    Explosion2.setBuffer(ExpBuffer2);
+    ExpBuffer.loadFromFile("sounds/Explosion+3.wav");
+    Explosion.setBuffer(ExpBuffer);
+    LaserBuffer.loadFromFile("sounds/LaserBlasts.wav");
+    Laser.setBuffer(LaserBuffer);
 
     std::list<Entity*> entities;
 
@@ -294,7 +306,7 @@ int main()
                         bullet *b = new bullet();
                         b->settings(sShot,p->x,p->y,10);
                         entities.push_back(b);
-                        //Laser.play();
+                        Laser.play();
                     }
             }
 
@@ -315,7 +327,7 @@ int main()
                     app.close();
 
                 // Any key pressed: change state to MENU
-                if (event.type == sf::Event::KeyPressed)
+                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::M))
                 {
                     state=MENU;
                 }
@@ -340,7 +352,7 @@ int main()
                     e->settings(sExpl,a->x,a->y);
                     e->name="explosion";
                     entities.push_back(e);
-                    //Explosion.play();
+                    Explosion.play();
                     score += 10;
                 }
 
@@ -354,12 +366,14 @@ int main()
                     e->settings(sExpl,a->x,a->y);
                     e->name="explosion";
                     entities.push_back(e);
-                    //ShipExplosion.play();
+                    if(lives==1)
+                        Explosion2.play();
+                    else
+                        Explosion.play();
                     lives--;
                     if(lives<=0)
                     {
                         UpdateHiScores(score);
-                        //GameOverSound.play();
                         state=END_GAME;
                     }
 
@@ -374,7 +388,7 @@ int main()
              if (e->name=="explosion")
               if (e->anim.isEnd()) e->life=0;
 
-            if (rand()%150==0)
+            if (rand()%100==0)
              {
                asteroid *a = new asteroid();
                a->settings(sAster, 640 ,rand()%screenheight, 8);
@@ -399,9 +413,6 @@ int main()
         if(state==MENU)
         {
             app.draw(background);
-
-            for(auto i:entities)
-                i->draw(app);
 
             //Show hi scores
             sf::Text showHiScores;
@@ -434,8 +445,19 @@ int main()
         {
             app.draw(background);
 
-            for(auto i:entities)
-                i->draw(app);
+            sf::Text showGameOver;
+            showGameOver.setFont(font);
+            showGameOver.setCharacterSize(50);
+            showGameOver.setPosition(220.f, 30.f);
+            showGameOver.setFillColor(sf::Color::Cyan);
+            std::string gameover = "GAME OVER";
+            showGameOver.setString(gameover);
+            app.draw(showGameOver);
+            showGameOver.setCharacterSize(25);
+            showGameOver.setPosition(250.f, 100.f);
+            gameover = "PRESS M";
+            showGameOver.setString(gameover);
+            app.draw(showGameOver);
         }
 
         app.display();
