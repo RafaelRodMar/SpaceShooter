@@ -18,6 +18,9 @@ int state = -1;
 std::vector<int> vhiscores;
 int lives, score;
 
+//music
+sf::Music gamemusic;
+
 //sound buffers
 sf::SoundBuffer ExpBuffer;
 sf::SoundBuffer ExpBuffer2;
@@ -221,7 +224,11 @@ int main()
     // Create the main window
     sf::RenderWindow app(sf::VideoMode(640, 180), "SpaceShooter");
     app.setFramerateLimit(60);
-    app.setPosition(sf::Vector2i(200,0));
+    app.setPosition(sf::Vector2i(400,200));
+
+    if( !gamemusic.openFromFile("sounds/DST-TowerDefenseTheme.ogg"))
+        return -1;
+    gamemusic.setLoop(true);
 
     //load textures
     sf::Texture t1,t2,t3,t4,t5;
@@ -285,6 +292,7 @@ int main()
                     state=GAME;
                     lives = 3;
                     score = 0;
+                    gamemusic.play();
                 }
             }
         }
@@ -318,6 +326,7 @@ int main()
 
         if(state==END_GAME)
         {
+            gamemusic.stop();
             sf::Event event;
             while (app.pollEvent(event))
             {
