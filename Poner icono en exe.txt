@@ -1,0 +1,9 @@
+First of all you need an .ico file. Put it in the folder with your main.c file.
+
+In CodeBlocks go to File -> New -> Empty File and name it icon.rc. It has to be visible in the Workspace/Project otherwise CodeBlocks will not be aware of this file. It will show up there in a project folder called Resources .
+
+Put the following line in it: MAINICON ICON "filename.ico". MAINICON is just an identifier, you can choose something different. More info 1 & More info 2.
+
+Save the files and compile - CodeBlocks will do everything else for you
+
+What will happen now, is windres.exe (the Resource Compiler) compiling the resource script icon.rc and the icon to an object binary file to obj\Release\icon.res. And the linker will add it to the executable.
