@@ -95,20 +95,16 @@ class asteroid: public Entity
 public:
     asteroid()
     {
-        dx=rand()%8-4;
-        dy=rand()%8-4;
+        dx=-4;
+        dy=0;
         name="asteroid";
     }
 
     void  update()
     {
         x+=dx;
-        y+=dy;
 
-        if (x>screenwidth) x=0;
-        if (x<0) x=screenwidth;
-        if (y>screenheight) y=0;
-        if (y<0) y=screenheight;
+        if (x<0) life=0;
     }
 
 };
@@ -124,10 +120,8 @@ public:
 void  update()
     {
         dx=6;
-        dy=0;
 
         x+=dx;
-        y+=dy;
 
         if (x>screenwidth || x<0 || y>screenheight || y<0) life=0;
     }
@@ -138,7 +132,6 @@ void  update()
 class player: public Entity
 {
 public:
-   bool thrust;
 
    player()
    {
@@ -147,13 +140,6 @@ public:
 
    void update()
    {
-     if (thrust)
-      { dx+=0.2;
-        dy+=0.2; }
-     else
-      { dx*=0.99;   //reduce thrust
-        dy*=0.99; }
-
     int maxSpeed=15;
     float speed = sqrt(dx*dx+dy*dy);
     if (speed>maxSpeed)
@@ -163,10 +149,10 @@ public:
     x+=dx;
     y+=dy;
 
-    if (x>screenwidth) x=0;
-    if (x<0) x=screenwidth;
-    if (y>screenheight) y=0;
-    if (y<0) y=screenheight;
+    if (x>screenwidth) x=screenwidth;
+    if (x<0) x=0;
+    if (y>screenheight) y=screenheight;
+    if (y<0) y=0;
    }
 
 };
@@ -238,33 +224,224 @@ int main()
     t1.loadFromFile("images/asteroid.png");
     t2.loadFromFile("images/background.png");
     t3.loadFromFile("images/explosion.png");
-    t4.loadFromFile("images/player1.png");
-    t5.loadFromFile("images/shot1.png");
+    t4.loadFromFile("images/player.png");
+    t5.loadFromFile("images/shot.png");
 
     //assign textures to sprites
-    sf::Sprite background(t3);
+    sf::Sprite background(t2);
+
+    //crear animaciones
+    Animation sPlayer(t4,0,0,16,16,2,0.2);
+    Animation sAster(t1,0,0,16,16,2,0.1);
+    Animation sShot(t5,0,0,16,16,2,0.2);
+    Animation sExpl(t3,0,0,32,32,1,0.05);
+
+    // Load the text font
+    font.loadFromFile("hour5.ttf");
+    showScore.setFont(font);
+    showScore.setCharacterSize(24);
+    showScore.setPosition(450.f, 0.f);
+    showScore.setFillColor(sf::Color::Cyan);
+
+    std::list<Entity*> entities;
+
+    player *p = new player();
+    p->settings(sPlayer,20,85,8);
+    entities.push_back(p);
+
+    ReadHiScores();
+
+    state = MENU;
 
 	// Start the game loop
     while (app.isOpen())
     {
-        // Process events
-        sf::Event event;
-        while (app.pollEvent(event))
+        //HandleKeys();
+        if(state==MENU)
         {
-            // Close window : exit
-            if (event.type == sf::Event::Closed)
-                app.close();
+            sf::Event event;
+            while (app.pollEvent(event))
+            {
+                if ((event.type == sf::Event::Closed) ||
+                    ((event.type == sf::Event::KeyPressed)
+                     && (event.key.code == sf::Keyboard::Escape)))
+                    app.close();
+
+                // S key pressed: change state to GAME
+                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::S))
+                {
+                    state=GAME;
+                    lives = 3;
+                    score = 0;
+                }
+            }
         }
 
-        // Clear screen
-        app.clear();
+        if(state==GAME)
+        {
+            sf::Event event;
+            while (app.pollEvent(event))
+            {
+                if ((event.type == sf::Event::Closed) ||
+                    ((event.type == sf::Event::KeyPressed)
+                     && (event.key.code == sf::Keyboard::Escape)))
+                    app.close();
 
-        // Draw the sprite
-        //app.draw(sprite);
+                // Space is the fire key
+                if (event.type == sf::Event::KeyPressed)
+                    if (event.key.code == sf::Keyboard::Space)
+                    {
+                        bullet *b = new bullet();
+                        b->settings(sShot,p->x,p->y,10);
+                        entities.push_back(b);
+                        //Laser.play();
+                    }
+            }
 
-        // Update the window
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) p->x += 3;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))  p->x -= 3;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) p->y -= 3;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) p-> y += 3;
+        }
+
+        if(state==END_GAME)
+        {
+            sf::Event event;
+            while (app.pollEvent(event))
+            {
+                if ((event.type == sf::Event::Closed) ||
+                    ((event.type == sf::Event::KeyPressed)
+                     && (event.key.code == sf::Keyboard::Escape)))
+                    app.close();
+
+                // Any key pressed: change state to MENU
+                if (event.type == sf::Event::KeyPressed)
+                {
+                    state=MENU;
+                }
+            }
+        }
+
+        //Game_cycle();
+        if(state==GAME)
+        {
+         for(auto a:entities)
+         {
+            for(auto b:entities)
+            {
+              if (a->name=="asteroid" && b->name=="bullet")
+               if ( isCollide(a,b) )
+                {
+                    a->life=false;
+                    b->life=false;
+
+                    //explosion
+                    Entity *e = new Entity();
+                    e->settings(sExpl,a->x,a->y);
+                    e->name="explosion";
+                    entities.push_back(e);
+                    //Explosion.play();
+                    score += 10;
+                }
+
+              if (a->name=="player" && b->name=="asteroid")
+               if ( isCollide(a,b) )
+                {
+                    b->life=false;
+
+                    //ship explosion
+                    Entity *e = new Entity();
+                    e->settings(sExpl,a->x,a->y);
+                    e->name="explosion";
+                    entities.push_back(e);
+                    //ShipExplosion.play();
+                    lives--;
+                    if(lives<=0)
+                    {
+                        UpdateHiScores(score);
+                        //GameOverSound.play();
+                        state=END_GAME;
+                    }
+
+                    //relocate the ship
+                    p->settings(sPlayer,20,85,8);
+                    p->dx=0;
+                }
+            }
+         }
+
+            for(auto e:entities)
+             if (e->name=="explosion")
+              if (e->anim.isEnd()) e->life=0;
+
+            if (rand()%150==0)
+             {
+               asteroid *a = new asteroid();
+               a->settings(sAster, 640 ,rand()%screenheight, 8);
+               entities.push_back(a);
+             }
+
+            for(auto i=entities.begin();i!=entities.end();)
+            {
+              Entity *e = *i;
+
+              e->update();
+              e->anim.update();
+
+              if (e->life==false) {i=entities.erase(i); delete e;}
+              else i++;
+            }
+        }
+
+        //Game_paint();
+        //////draw//////
+        app.draw(background);
+        if(state==MENU)
+        {
+            app.draw(background);
+
+            for(auto i:entities)
+                i->draw(app);
+
+            //Show hi scores
+            sf::Text showHiScores;
+            showHiScores.setFont(font);
+            showHiScores.setCharacterSize(24);
+            showHiScores.setPosition(280.f, 20.f);
+            showHiScores.setFillColor(sf::Color::Cyan);
+            std::string histr="SPACE SHOOTER\n  HI-SCORES\n";
+            for(int i=0;i<5;i++)
+            {
+                histr = histr + "    " + std::to_string(vhiscores[i]) + "\n";
+            }
+            histr += "PRESS S TO START";
+            showHiScores.setString(histr);
+            app.draw(showHiScores);
+        }
+
+        if(state==GAME)
+        {
+            for(auto i:entities)
+                i->draw(app);
+
+            // Draw the score
+            std::string sc = "LIVES: " + std::to_string(lives) + "   SCORE: " + std::to_string(score);
+            showScore.setString(sc);
+            app.draw(showScore);
+        }
+
+        if(state==END_GAME)
+        {
+            app.draw(background);
+
+            for(auto i:entities)
+                i->draw(app);
+        }
+
         app.display();
     }
+
+    WriteHiScores();
 
     return EXIT_SUCCESS;
 }
