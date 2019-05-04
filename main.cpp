@@ -314,6 +314,7 @@ int main()
 
                 // Space is the fire key
                 if (event.type == sf::Event::KeyPressed)
+                {
                     if (event.key.code == sf::Keyboard::Space)
                     {
                         bullet *b = new bullet();
@@ -321,6 +322,7 @@ int main()
                         entities.push_back(b);
                         Laser.play();
                     }
+                }
             }
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) p->x += 3;
