@@ -223,7 +223,7 @@ int main()
 
     // Create the main window
     sf::RenderWindow app(sf::VideoMode(640, 180), "SpaceShooter");
-    app.setFramerateLimit(60);
+    //app.setFramerateLimit(60); //ya no hace falta.
     app.setPosition(sf::Vector2i(400,200));
 
     if( !gamemusic.openFromFile("sounds/DST-TowerDefenseTheme.ogg"))
@@ -270,11 +270,16 @@ int main()
 
     ReadHiScores();
 
+    sf::Clock clock;
+    const float timePerFrame = 1.0 / 60.0;  //60fps.
+
     state = MENU;
 
 	// Start the game loop
     while (app.isOpen())
     {
+        sf::Time elapsed = clock.getElapsedTime();
+
         //HandleKeys();
         if(state==MENU)
         {
@@ -297,7 +302,7 @@ int main()
             }
         }
 
-        if(state==GAME)
+        if(state==GAME && elapsed.asSeconds() > timePerFrame)
         {
             sf::Event event;
             while (app.pollEvent(event))
@@ -322,6 +327,8 @@ int main()
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))  p->x -= 3;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) p->y -= 3;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) p-> y += 3;
+
+            clock.restart();
         }
 
         if(state==END_GAME)
@@ -344,7 +351,7 @@ int main()
         }
 
         //Game_cycle();
-        if(state==GAME)
+        if(state==GAME && elapsed.asSeconds() > timePerFrame)
         {
          for(auto a:entities)
          {
@@ -414,6 +421,8 @@ int main()
               if (e->life==false) {i=entities.erase(i); delete e;}
               else i++;
             }
+
+            clock.restart();
         }
 
         //Game_paint();
