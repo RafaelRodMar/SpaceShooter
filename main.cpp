@@ -1,5 +1,4 @@
 #include <SFML/Graphics.hpp>
-#include <SFML/Graphics.hpp>
 #include <sfml/audio.hpp>
 #include <vector>
 #include <list>
@@ -239,7 +238,10 @@ int main()
     t5.loadFromFile("images/shot.png");
 
     //assign textures to sprites
-    sf::Sprite background(t2);
+    t2.setRepeated(true);
+    int bgx = 0;
+    sf::IntRect bgrect(bgx,0,640,180);
+    sf::Sprite background(t2,bgrect);
 
     //crear animaciones
     Animation sPlayer(t4,0,0,16,16,2,0.2);
@@ -329,8 +331,6 @@ int main()
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))  p->x -= 3;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) p->y -= 3;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) p-> y += 3;
-
-            clock.restart();
         }
 
         if(state==END_GAME)
@@ -422,6 +422,15 @@ int main()
 
               if (e->life==false) {i=entities.erase(i); delete e;}
               else i++;
+            }
+
+            //update background
+            if( elapsed.asSeconds() > timePerFrame )
+            {
+                bgx++;
+                bgrect.left = bgx;
+                background.setTextureRect(bgrect);
+                if(bgx >= screenwidth) bgx = 0;
             }
 
             clock.restart();
