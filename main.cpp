@@ -209,6 +209,17 @@ void WriteHiScores()
     out.close();
 }
 
+void Text(sf::RenderWindow &app, std::string pstr, float px, float py,sf::Color pcolor, int psize, sf::Font pfont)
+{
+    sf::Text str;
+    str.setString(pstr);
+    str.setFont(pfont);
+    str.setCharacterSize(psize);
+    str.setPosition(px, py);
+    str.setFillColor(pcolor);
+    app.draw(str);
+}
+
 bool isCollide(Entity *a,Entity *b)
 {
   return (b->x - a->x)*(b->x - a->x)+
@@ -251,10 +262,6 @@ int main()
 
     // Load the text font
     font.loadFromFile("hour5.ttf");
-    showScore.setFont(font);
-    showScore.setCharacterSize(24);
-    showScore.setPosition(450.f, 0.f);
-    showScore.setFillColor(sf::Color::Cyan);
 
     // Load sounds
     ExpBuffer2.loadFromFile("sounds/Explosion+6.wav");
@@ -444,19 +451,13 @@ int main()
             app.draw(background);
 
             //Show hi scores
-            sf::Text showHiScores;
-            showHiScores.setFont(font);
-            showHiScores.setCharacterSize(24);
-            showHiScores.setPosition(280.f, 20.f);
-            showHiScores.setFillColor(sf::Color::Cyan);
             std::string histr="SPACE SHOOTER\n  HI-SCORES\n";
             for(int i=0;i<5;i++)
             {
                 histr = histr + "    " + std::to_string(vhiscores[i]) + "\n";
             }
             histr += "PRESS S TO START";
-            showHiScores.setString(histr);
-            app.draw(showHiScores);
+            Text(app,histr,280.f,20.f,sf::Color::Cyan,24,font);
         }
 
         if(state==GAME)
@@ -466,27 +467,15 @@ int main()
 
             // Draw the score
             std::string sc = "LIVES: " + std::to_string(lives) + "   SCORE: " + std::to_string(score);
-            showScore.setString(sc);
-            app.draw(showScore);
+            Text(app,sc,450.f,0.f,sf::Color::Cyan,24,font);
         }
 
         if(state==END_GAME)
         {
             app.draw(background);
 
-            sf::Text showGameOver;
-            showGameOver.setFont(font);
-            showGameOver.setCharacterSize(50);
-            showGameOver.setPosition(220.f, 30.f);
-            showGameOver.setFillColor(sf::Color::Cyan);
-            std::string gameover = "GAME OVER";
-            showGameOver.setString(gameover);
-            app.draw(showGameOver);
-            showGameOver.setCharacterSize(25);
-            showGameOver.setPosition(250.f, 100.f);
-            gameover = "PRESS M";
-            showGameOver.setString(gameover);
-            app.draw(showGameOver);
+            Text(app,"GAME OVER",220.f,30.f,sf::Color::Cyan,50,font);
+            Text(app,"PRESS M", 250.f, 100.f, sf::Color::Cyan,25,font);
         }
 
         app.display();
