@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <time.h>
+#include <cstring>
 
 //dimensiones de la pantalla
 const int screenwidth = 640;
@@ -227,6 +228,27 @@ bool isCollide(Entity *a,Entity *b)
          (a->R + b->R)*(a->R + b->R);
 }
 
+//keyboard handling
+// The keyboard's state in the current- and the previous frame
+bool CurrentKeyState[sf::Keyboard::KeyCount];
+bool PreviousKeyState[sf::Keyboard::KeyCount];
+
+bool KeyPressed(sf::Keyboard::Key Key)
+{
+    return (CurrentKeyState[Key] && !PreviousKeyState[Key]);
+}
+
+bool KeyReleased(sf::Keyboard::Key Key)
+{
+    return (!CurrentKeyState[Key] && PreviousKeyState[Key]);
+}
+
+bool KeyHeld(sf::Keyboard::Key Key)
+{
+    return CurrentKeyState[Key];
+}
+
+
 int main()
 {
     srand(time(0));
@@ -270,6 +292,10 @@ int main()
     Explosion.setBuffer(ExpBuffer);
     LaserBuffer.loadFromFile("sounds/LaserBlasts.wav");
     Laser.setBuffer(LaserBuffer);
+
+    //keyboard buffers initialization
+    memset(CurrentKeyState,     false, sizeof(CurrentKeyState));
+    memset(PreviousKeyState,    false, sizeof(PreviousKeyState));
 
     std::list<Entity*> entities;
 
@@ -316,28 +342,36 @@ int main()
             sf::Event event;
             while (app.pollEvent(event))
             {
-                if ((event.type == sf::Event::Closed) ||
-                    ((event.type == sf::Event::KeyPressed)
-                     && (event.key.code == sf::Keyboard::Escape)))
+                if (event.type == sf::Event::Closed)
                     app.close();
-
-                // Space is the fire key
-                if (event.type == sf::Event::KeyPressed)
-                {
-                    if (event.key.code == sf::Keyboard::Space)
-                    {
-                        bullet *b = new bullet();
-                        b->settings(sShot,p->x,p->y,10);
-                        entities.push_back(b);
-                        Laser.play();
-                    }
-                }
             }
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) p->x += 3;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))  p->x -= 3;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) p->y -= 3;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) p-> y += 3;
+            // Save the state of each keyboard key (must be done before any Key* function is executed)
+            for(unsigned int i = 0; i < sf::Keyboard::KeyCount; ++i)
+            {
+                // Save the keyboard's state from the previous frame
+                PreviousKeyState[i] = CurrentKeyState[i];
+
+                // And save the keyboard's state in the current frame
+                CurrentKeyState[i] = sf::Keyboard::isKeyPressed((sf::Keyboard::Key)i);
+            }
+
+            if(KeyPressed(sf::Keyboard::Escape))
+                app.close();
+
+            // Space is the fire key
+            if(KeyPressed(sf::Keyboard::Space))
+            {
+                bullet *b = new bullet();
+                b->settings(sShot,p->x,p->y,10);
+                entities.push_back(b);
+                Laser.play();
+            }
+
+            if (KeyHeld(sf::Keyboard::Right)) p->x += 3;
+            if (KeyHeld(sf::Keyboard::Left))  p->x -= 3;
+            if (KeyHeld(sf::Keyboard::Up)) p->y -= 3;
+            if (KeyHeld(sf::Keyboard::Down)) p-> y += 3;
         }
 
         if(state==END_GAME)
