@@ -255,7 +255,7 @@ int main()
 
     // Create the main window
     sf::RenderWindow app(sf::VideoMode(640, 180), "SpaceShooter");
-    //app.setFramerateLimit(60); //ya no hace falta.
+    //app.setFramerateLimit(60); //no needed.
     app.setPosition(sf::Vector2i(400,200));
 
     if( !gamemusic.openFromFile("sounds/DST-TowerDefenseTheme.ogg"))
