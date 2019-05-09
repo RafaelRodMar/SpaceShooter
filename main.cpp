@@ -306,175 +306,176 @@ int main()
     ReadHiScores();
 
     sf::Clock clock;
-    const float timePerFrame = 1.0 / 60.0;  //60fps.
+    const sf::Time timePerFrame = sf::seconds(1.f/60.f); //60fps
+    sf::Time elapsed = sf::Time::Zero;
 
     state = MENU;
 
 	// Start the game loop
     while (app.isOpen())
     {
-        sf::Time elapsed = clock.getElapsedTime();
+        elapsed += clock.restart();
 
-        //HandleKeys();
-        if(state==MENU)
+        while( elapsed > timePerFrame )
         {
-            sf::Event event;
-            while (app.pollEvent(event))
-            {
-                if ((event.type == sf::Event::Closed) ||
-                    ((event.type == sf::Event::KeyPressed)
-                     && (event.key.code == sf::Keyboard::Escape)))
-                    app.close();
+            elapsed -= timePerFrame;
 
-                // S key pressed: change state to GAME
-                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::S))
+            //HandleKeys();
+            if(state==MENU)
+            {
+                sf::Event event;
+                while (app.pollEvent(event))
                 {
-                    state=GAME;
-                    lives = 3;
-                    score = 0;
-                    gamemusic.play();
-                }
-            }
-        }
+                    if ((event.type == sf::Event::Closed) ||
+                        ((event.type == sf::Event::KeyPressed)
+                         && (event.key.code == sf::Keyboard::Escape)))
+                        app.close();
 
-        if(state==GAME && elapsed.asSeconds() > timePerFrame)
-        {
-            sf::Event event;
-            while (app.pollEvent(event))
-            {
-                if (event.type == sf::Event::Closed)
-                    app.close();
-            }
-
-            // Save the state of each keyboard key (must be done before any Key* function is executed)
-            for(unsigned int i = 0; i < sf::Keyboard::KeyCount; ++i)
-            {
-                // Save the keyboard's state from the previous frame
-                PreviousKeyState[i] = CurrentKeyState[i];
-
-                // And save the keyboard's state in the current frame
-                CurrentKeyState[i] = sf::Keyboard::isKeyPressed((sf::Keyboard::Key)i);
-            }
-
-            if(KeyPressed(sf::Keyboard::Escape))
-                app.close();
-
-            // Space is the fire key
-            if(KeyPressed(sf::Keyboard::Space))
-            {
-                bullet *b = new bullet();
-                b->settings(sShot,p->x,p->y,10);
-                entities.push_back(b);
-                Laser.play();
-            }
-
-            if (KeyHeld(sf::Keyboard::Right)) p->x += 3;
-            if (KeyHeld(sf::Keyboard::Left))  p->x -= 3;
-            if (KeyHeld(sf::Keyboard::Up)) p->y -= 3;
-            if (KeyHeld(sf::Keyboard::Down)) p-> y += 3;
-        }
-
-        if(state==END_GAME)
-        {
-            gamemusic.stop();
-            sf::Event event;
-            while (app.pollEvent(event))
-            {
-                if ((event.type == sf::Event::Closed) ||
-                    ((event.type == sf::Event::KeyPressed)
-                     && (event.key.code == sf::Keyboard::Escape)))
-                    app.close();
-
-                // Any key pressed: change state to MENU
-                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::M))
-                {
-                    state=MENU;
-                }
-            }
-        }
-
-        //Game_cycle();
-        if(state==GAME && elapsed.asSeconds() > timePerFrame)
-        {
-         for(auto a:entities)
-         {
-            for(auto b:entities)
-            {
-              if (a->name=="asteroid" && b->name=="bullet")
-               if ( isCollide(a,b) )
-                {
-                    a->life=false;
-                    b->life=false;
-
-                    //explosion
-                    Entity *e = new Entity();
-                    e->settings(sExpl,a->x,a->y);
-                    e->name="explosion";
-                    entities.push_back(e);
-                    Explosion.play();
-                    score += 10;
-                }
-
-              if (a->name=="player" && b->name=="asteroid")
-               if ( isCollide(a,b) )
-                {
-                    b->life=false;
-
-                    //ship explosion
-                    Entity *e = new Entity();
-                    e->settings(sExpl,a->x,a->y);
-                    e->name="explosion";
-                    entities.push_back(e);
-                    if(lives==1)
-                        Explosion2.play();
-                    else
-                        Explosion.play();
-                    lives--;
-                    if(lives<=0)
+                    // S key pressed: change state to GAME
+                    if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::S))
                     {
-                        UpdateHiScores(score);
-                        state=END_GAME;
+                        state=GAME;
+                        lives = 3;
+                        score = 0;
+                        gamemusic.play();
+                    }
+                }
+            }
+
+            if(state==GAME)
+            {
+                sf::Event event;
+                while (app.pollEvent(event))
+                {
+                    if (event.type == sf::Event::Closed)
+                        app.close();
+                }
+
+                // Save the state of each keyboard key (must be done before any Key* function is executed)
+                for(unsigned int i = 0; i < sf::Keyboard::KeyCount; ++i)
+                {
+                    // Save the keyboard's state from the previous frame
+                    PreviousKeyState[i] = CurrentKeyState[i];
+
+                    // And save the keyboard's state in the current frame
+                    CurrentKeyState[i] = sf::Keyboard::isKeyPressed((sf::Keyboard::Key)i);
+                }
+
+                if(KeyPressed(sf::Keyboard::Escape))
+                    app.close();
+
+                // Space is the fire key
+                if(KeyPressed(sf::Keyboard::Space))
+                {
+                    bullet *b = new bullet();
+                    b->settings(sShot,p->x,p->y,10);
+                    entities.push_back(b);
+                    Laser.play();
+                }
+
+                if (KeyHeld(sf::Keyboard::Right)) p->x += 3;
+                if (KeyHeld(sf::Keyboard::Left))  p->x -= 3;
+                if (KeyHeld(sf::Keyboard::Up)) p->y -= 3;
+                if (KeyHeld(sf::Keyboard::Down)) p-> y += 3;
+            }
+
+            if(state==END_GAME)
+            {
+                gamemusic.stop();
+                sf::Event event;
+                while (app.pollEvent(event))
+                {
+                    if ((event.type == sf::Event::Closed) ||
+                        ((event.type == sf::Event::KeyPressed)
+                         && (event.key.code == sf::Keyboard::Escape)))
+                        app.close();
+
+                    // Any key pressed: change state to MENU
+                    if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::M))
+                    {
+                        state=MENU;
+                    }
+                }
+            }
+
+            //Game_cycle();
+            if(state==GAME)
+            {
+             for(auto a:entities)
+             {
+                for(auto b:entities)
+                {
+                  if (a->name=="asteroid" && b->name=="bullet")
+                   if ( isCollide(a,b) )
+                    {
+                        a->life=false;
+                        b->life=false;
+
+                        //explosion
+                        Entity *e = new Entity();
+                        e->settings(sExpl,a->x,a->y);
+                        e->name="explosion";
+                        entities.push_back(e);
+                        Explosion.play();
+                        score += 10;
                     }
 
-                    //relocate the ship
-                    p->settings(sPlayer,20,85,8);
-                    p->dx=0;
+                  if (a->name=="player" && b->name=="asteroid")
+                   if ( isCollide(a,b) )
+                    {
+                        b->life=false;
+
+                        //ship explosion
+                        Entity *e = new Entity();
+                        e->settings(sExpl,a->x,a->y);
+                        e->name="explosion";
+                        entities.push_back(e);
+                        if(lives==1)
+                            Explosion2.play();
+                        else
+                            Explosion.play();
+                        lives--;
+                        if(lives<=0)
+                        {
+                            UpdateHiScores(score);
+                            state=END_GAME;
+                        }
+
+                        //relocate the ship
+                        p->settings(sPlayer,20,85,8);
+                        p->dx=0;
+                    }
                 }
-            }
-         }
-
-            for(auto e:entities)
-             if (e->name=="explosion")
-              if (e->anim.isEnd()) e->life=0;
-
-            if (rand()%100==0)
-             {
-               asteroid *a = new asteroid();
-               a->settings(sAster, 640 ,rand()%screenheight, 8);
-               entities.push_back(a);
              }
 
-            for(auto i=entities.begin();i!=entities.end();)
-            {
-              Entity *e = *i;
+                for(auto e:entities)
+                 if (e->name=="explosion")
+                  if (e->anim.isEnd()) e->life=0;
 
-              e->update();
-              e->anim.update();
+                if (rand()%100==0)
+                 {
+                   asteroid *a = new asteroid();
+                   a->settings(sAster, 640 ,rand()%screenheight, 8);
+                   entities.push_back(a);
+                 }
 
-              if (e->life==false) {i=entities.erase(i); delete e;}
-              else i++;
-            }
+                for(auto i=entities.begin();i!=entities.end();)
+                {
+                  Entity *e = *i;
 
-            //update background
-            if( elapsed.asSeconds() > timePerFrame )
-            {
+                  e->update();
+                  e->anim.update();
+
+                  if (e->life==false) {i=entities.erase(i); delete e;}
+                  else i++;
+                }
+
+                //update background
                 bgx++;
                 bgrect.left = bgx;
                 background.setTextureRect(bgrect);
                 if(bgx >= screenwidth) bgx = 0;
             }
-
-            clock.restart();
         }
 
         //Game_paint();
