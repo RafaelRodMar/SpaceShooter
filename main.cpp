@@ -8,32 +8,18 @@
 #include <sstream>
 #include <time.h>
 #include <cstring>
+#include <random>
 
-//dimensiones de la pantalla
-const int screenwidth = 640;
-const int screenheight = 180;
-
-enum game_states {MENU, GAME, END_GAME};
-int state = -1;
-std::vector<int> vhiscores;
-int lives, score;
-
-//music
-sf::Music gamemusic;
-
-//sound buffers
-sf::SoundBuffer ExpBuffer;
-sf::SoundBuffer ExpBuffer2;
-sf::SoundBuffer LaserBuffer;
-
-//sound play
-sf::Sound Explosion;
-sf::Sound Explosion2;
-sf::Sound Laser;
-
-//fonts
-sf::Font font;
-sf::Text showScore;
+void Text(sf::RenderWindow &app, std::string pstr, float px, float py,sf::Color pcolor, int psize, sf::Font pfont)
+{
+    sf::Text str;
+    str.setString(pstr);
+    str.setFont(pfont);
+    str.setCharacterSize(psize);
+    str.setPosition(px, py);
+    str.setFillColor(pcolor);
+    app.draw(str);
+}
 
 class Animation
 {
@@ -45,6 +31,19 @@ public:
 	Animation(){}
 
     Animation (sf::Texture &t, int x, int y, int w, int h, int count, float Speed)
+	{
+	    Frame = 0;
+        speed = Speed;
+
+		for (int i=0;i<count;i++)
+         frames.push_back( sf::IntRect(x+i*w, y, w, h)  );
+
+		sprite.setTexture(t);
+		sprite.setOrigin(w/2,h/2);
+        sprite.setTextureRect(frames[0]);
+	}
+
+	void init(sf::Texture &t, int x, int y, int w, int h, int count, float Speed)
 	{
 	    Frame = 0;
         speed = Speed;
@@ -79,6 +78,7 @@ class Entity
         bool life;
         std::string name;
         Animation anim;
+        int scrw=640,scrh=180;
 
     Entity()
     {
@@ -92,7 +92,7 @@ class Entity
         R = radius;
     }
 
-    virtual void update(){};
+    virtual void update(sf::Time dt){};
 
     void draw(sf::RenderWindow &app)
     {
@@ -108,14 +108,14 @@ class asteroid: public Entity
 public:
     asteroid()
     {
-        dx=-4;
+        dx=-150;
         dy=0;
         name="asteroid";
     }
 
-    void  update()
+    void  update(sf::Time dt)
     {
-        x+=dx;
+        x+=dx * dt.asSeconds();
 
         if (x<0) life=0;
     }
@@ -130,17 +130,16 @@ public:
         name="bullet";
     }
 
-void  update()
+void  update(sf::Time dt)
     {
-        dx=6;
+        dx=350;
 
-        x+=dx;
+        x+=dx * dt.asSeconds();
 
-        if (x>screenwidth || x<0 || y>screenheight || y<0) life=0;
+        if (x>scrw || x<0 || y>scrh || y<0) life=0;
     }
 
 };
-
 
 class player: public Entity
 {
@@ -151,75 +150,19 @@ public:
      name="player";
    }
 
-   void update()
+   void update(sf::Time dt)
    {
-    x+=dx;
-    y+=dy;
+    x+=dx * dt.asSeconds();
+    y+=dy * dt.asSeconds();
 
-    if (x>screenwidth) x=screenwidth;
+    dx=dy=0.0;
+    if (x>scrw) x=scrw;
     if (x<0) x=0;
-    if (y>screenheight) y=screenheight;
+    if (y>scrh) y=scrh;
     if (y<0) y=0;
    }
 
 };
-
-void UpdateHiScores(int newscore)
-{
-    //new score to the end
-    vhiscores.push_back(newscore);
-    //sort
-    sort(vhiscores.rbegin(), vhiscores.rend());
-    //remove the last
-    vhiscores.pop_back();
-}
-
-void ReadHiScores()
-{
-    std::ifstream in("hiscores.dat");
-    if(in.good())
-    {
-        std::string str;
-        getline(in,str);
-        std::stringstream ss(str);
-        int n;
-        for(int i=0;i<5;i++)
-        {
-            ss >> n;
-            vhiscores.push_back(n);
-        }
-        in.close();
-    }
-    else
-    {
-        //if file does not exist fill with 5 scores
-        for(int i=0;i<5;i++)
-        {
-            vhiscores.push_back(0);
-        }
-    }
-}
-
-void WriteHiScores()
-{
-    std::ofstream out("hiscores.dat");
-    for(int i=0;i<5;i++)
-    {
-        out << vhiscores[i] << " ";
-    }
-    out.close();
-}
-
-void Text(sf::RenderWindow &app, std::string pstr, float px, float py,sf::Color pcolor, int psize, sf::Font pfont)
-{
-    sf::Text str;
-    str.setString(pstr);
-    str.setFont(pfont);
-    str.setCharacterSize(psize);
-    str.setPosition(px, py);
-    str.setFillColor(pcolor);
-    app.draw(str);
-}
 
 bool isCollide(Entity *a,Entity *b)
 {
@@ -228,59 +171,106 @@ bool isCollide(Entity *a,Entity *b)
          (a->R + b->R)*(a->R + b->R);
 }
 
-//keyboard handling
-// The keyboard's state in the current- and the previous frame
-bool CurrentKeyState[sf::Keyboard::KeyCount];
-bool PreviousKeyState[sf::Keyboard::KeyCount];
+class Game{
+public:
+    int screenwidth = -1;
+    int screenheight = -1;
+    sf::RenderWindow app;
 
-bool KeyPressed(sf::Keyboard::Key Key)
+    enum game_states {MENU, GAME, END_GAME};
+    int state = MENU;
+    std::vector<int> vhiscores;
+    int lives = -1, score = -1;
+
+    //keyboard handling
+    // The keyboard's state in the current- and the previous frame
+    bool CurrentKeyState[sf::Keyboard::KeyCount];
+    bool PreviousKeyState[sf::Keyboard::KeyCount];
+
+    //music
+    sf::Music gamemusic;
+
+    //sound buffers
+    sf::SoundBuffer ExpBuffer;
+    sf::SoundBuffer ExpBuffer2;
+    sf::SoundBuffer LaserBuffer;
+
+    //sound play
+    sf::Sound Explosion;
+    sf::Sound Explosion2;
+    sf::Sound Laser;
+
+    //fonts
+    sf::Font font;
+    sf::Text showScore;
+
+    //textures
+    sf::Texture t1,t2,t3,t4,t5;
+
+    //crear animaciones
+    Animation sPlayer;
+    Animation sAster;
+    Animation sShot;
+    Animation sExpl;
+
+    //background data
+    int bgx = 0;
+    sf::IntRect bgrect;
+    sf::Sprite background;
+
+    //player, asteroids and bullets list.
+    std::list<Entity*> entities;
+
+    //the player
+    player *p;
+
+    void init(int pscrw, int pscrh, int pposx, int pposy, std::string pname);
+    void input();
+    void update(sf::Time delta);
+    void draw();
+
+    //keyboard functions
+    bool KeyPressed(sf::Keyboard::Key Key)
+    {
+        return (CurrentKeyState[Key] && !PreviousKeyState[Key]);
+    }
+
+    bool KeyReleased(sf::Keyboard::Key Key)
+    {
+        return (!CurrentKeyState[Key] && PreviousKeyState[Key]);
+    }
+
+    bool KeyHeld(sf::Keyboard::Key Key)
+    {
+        return CurrentKeyState[Key];
+    }
+};
+
+void Game::init(int pscrw, int pscrh, int pposx, int pposy, std::string pname)
 {
-    return (CurrentKeyState[Key] && !PreviousKeyState[Key]);
-}
+    screenwidth = pscrw;
+    screenheight = pscrh;
+    app.create(sf::VideoMode(pscrw,pscrh),pname);
+    app.setPosition(sf::Vector2i(pposx,pposy));
 
-bool KeyReleased(sf::Keyboard::Key Key)
-{
-    return (!CurrentKeyState[Key] && PreviousKeyState[Key]);
-}
-
-bool KeyHeld(sf::Keyboard::Key Key)
-{
-    return CurrentKeyState[Key];
-}
-
-
-int main()
-{
-    srand(time(0));
-
-    // Create the main window
-    sf::RenderWindow app(sf::VideoMode(640, 180), "SpaceShooter");
-    //app.setFramerateLimit(60); //no needed.
-    app.setPosition(sf::Vector2i(400,200));
-
-    if( !gamemusic.openFromFile("sounds/DST-TowerDefenseTheme.ogg"))
-        return -1;
+    //load music.
+    gamemusic.openFromFile("sounds/DST-TowerDefenseTheme.ogg");
     gamemusic.setLoop(true);
 
     //load textures
-    sf::Texture t1,t2,t3,t4,t5;
     t1.loadFromFile("images/asteroid.png");
     t2.loadFromFile("images/background.png");
     t3.loadFromFile("images/explosion.png");
     t4.loadFromFile("images/player.png");
     t5.loadFromFile("images/shot.png");
 
-    //assign textures to sprites
+    //prepare background
     t2.setRepeated(true);
-    int bgx = 0;
-    sf::IntRect bgrect(bgx,0,640,180);
-    sf::Sprite background(t2,bgrect);
-
-    //crear animaciones
-    Animation sPlayer(t4,0,0,16,16,2,0.2);
-    Animation sAster(t1,0,0,16,16,2,0.1);
-    Animation sShot(t5,0,0,16,16,2,0.2);
-    Animation sExpl(t3,0,0,32,32,1,0.05);
+    bgrect.left = bgx;
+    bgrect.top = 0;
+    bgrect.width = screenwidth;
+    bgrect.height = screenheight;
+    background.setTexture(t2,true);
 
     // Load the text font
     font.loadFromFile("hour5.ttf");
@@ -293,209 +283,259 @@ int main()
     LaserBuffer.loadFromFile("sounds/LaserBlasts.wav");
     Laser.setBuffer(LaserBuffer);
 
+    //create animations
+    sPlayer.init(t4,0,0,16,16,2,0.2);
+    sAster.init(t1,0,0,16,16,2,0.1);
+    sShot.init(t5,0,0,16,16,2,0.2);
+    sExpl.init(t3,0,0,32,32,1,0.05);
+
     //keyboard buffers initialization
     memset(CurrentKeyState,     false, sizeof(CurrentKeyState));
     memset(PreviousKeyState,    false, sizeof(PreviousKeyState));
 
-    std::list<Entity*> entities;
-
-    player *p = new player();
+    //player creation
+    p = new player();
     p->settings(sPlayer,20,85,8);
     entities.push_back(p);
+}
 
-    ReadHiScores();
-
-    sf::Clock clock;
-    const sf::Time timePerFrame = sf::seconds(1.f/60.f); //60fps
-    sf::Time elapsed = sf::Time::Zero;
-
-    state = MENU;
-
-	// Start the game loop
-    while (app.isOpen())
-    {
-        elapsed += clock.restart();
-
-        while( elapsed > timePerFrame )
+void Game::input()
+{
+    switch(state)
         {
-            elapsed -= timePerFrame;
-
-            //HandleKeys();
-            if(state==MENU)
+        case MENU:
             {
-                sf::Event event;
-                while (app.pollEvent(event))
-                {
-                    if ((event.type == sf::Event::Closed) ||
-                        ((event.type == sf::Event::KeyPressed)
-                         && (event.key.code == sf::Keyboard::Escape)))
-                        app.close();
-
-                    // S key pressed: change state to GAME
-                    if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::S))
-                    {
-                        state=GAME;
-                        lives = 3;
-                        score = 0;
-                        gamemusic.play();
-                    }
-                }
-            }
-
-            if(state==GAME)
+            sf::Event event;
+            while (app.pollEvent(event))
             {
-                sf::Event event;
-                while (app.pollEvent(event))
-                {
-                    if (event.type == sf::Event::Closed)
-                        app.close();
-                }
-
-                // Save the state of each keyboard key (must be done before any Key* function is executed)
-                for(unsigned int i = 0; i < sf::Keyboard::KeyCount; ++i)
-                {
-                    // Save the keyboard's state from the previous frame
-                    PreviousKeyState[i] = CurrentKeyState[i];
-
-                    // And save the keyboard's state in the current frame
-                    CurrentKeyState[i] = sf::Keyboard::isKeyPressed((sf::Keyboard::Key)i);
-                }
-
-                if(KeyPressed(sf::Keyboard::Escape))
+                if ((event.type == sf::Event::Closed) ||
+                    ((event.type == sf::Event::KeyPressed)
+                     && (event.key.code == sf::Keyboard::Escape)))
                     app.close();
 
-                // Space is the fire key
-                if(KeyPressed(sf::Keyboard::Space))
+                // S key pressed: change state to GAME
+                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::S))
                 {
-                    bullet *b = new bullet();
-                    b->settings(sShot,p->x,p->y,10);
-                    entities.push_back(b);
-                    Laser.play();
-                }
-
-                if (KeyHeld(sf::Keyboard::Right)) p->x += 3;
-                if (KeyHeld(sf::Keyboard::Left))  p->x -= 3;
-                if (KeyHeld(sf::Keyboard::Up)) p->y -= 3;
-                if (KeyHeld(sf::Keyboard::Down)) p-> y += 3;
-            }
-
-            if(state==END_GAME)
-            {
-                gamemusic.stop();
-                sf::Event event;
-                while (app.pollEvent(event))
-                {
-                    if ((event.type == sf::Event::Closed) ||
-                        ((event.type == sf::Event::KeyPressed)
-                         && (event.key.code == sf::Keyboard::Escape)))
-                        app.close();
-
-                    // Any key pressed: change state to MENU
-                    if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::M))
-                    {
-                        state=MENU;
-                    }
+                    state=GAME;
+                    lives = 3;
+                    score = 0;
+                    gamemusic.play();
                 }
             }
-
-            //Game_cycle();
-            if(state==GAME)
+            break;
+            }
+        case GAME:
             {
-             for(auto a:entities)
-             {
-                for(auto b:entities)
-                {
-                  if (a->name=="asteroid" && b->name=="bullet")
-                   if ( isCollide(a,b) )
-                    {
-                        a->life=false;
-                        b->life=false;
+            sf::Event event;
+            while (app.pollEvent(event))
+            {
+                if (event.type == sf::Event::Closed)
+                    app.close();
+            }
 
-                        //explosion
-                        Entity *e = new Entity();
-                        e->settings(sExpl,a->x,a->y);
-                        e->name="explosion";
-                        entities.push_back(e);
+            // Save the state of each keyboard key (must be done before any Key* function is executed)
+            for(unsigned int i = 0; i < sf::Keyboard::KeyCount; ++i)
+            {
+                // Save the keyboard's state from the previous frame
+                PreviousKeyState[i] = CurrentKeyState[i];
+
+                // And save the keyboard's state in the current frame
+                CurrentKeyState[i] = sf::Keyboard::isKeyPressed((sf::Keyboard::Key)i);
+            }
+
+            if(KeyPressed(sf::Keyboard::Escape))
+                app.close();
+
+            // Space is the fire key
+            if(KeyPressed(sf::Keyboard::Space))
+            {
+                bullet *b = new bullet();
+                b->settings(sShot,p->x,p->y,10);
+                entities.push_back(b);
+                Laser.play();
+            }
+
+            if (KeyHeld(sf::Keyboard::Right)) p->dx = 300;
+            if (KeyHeld(sf::Keyboard::Left))  p->dx = -300;
+            if (KeyHeld(sf::Keyboard::Up)) p->dy = -300;
+            if (KeyHeld(sf::Keyboard::Down)) p->dy = 300;
+            break;
+            }
+        case END_GAME:
+            {
+            gamemusic.stop();
+            sf::Event event;
+            while (app.pollEvent(event))
+            {
+                if ((event.type == sf::Event::Closed) ||
+                    ((event.type == sf::Event::KeyPressed)
+                     && (event.key.code == sf::Keyboard::Escape)))
+                    app.close();
+
+                // Any key pressed: change state to MENU
+                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::M))
+                {
+                    state=MENU;
+                }
+            }
+            break;
+            }
+        default:
+            break;
+        }
+}
+
+void UpdateHiScores(std::vector<int> &v, int newscore)
+{
+    //new score to the end
+    v.push_back(newscore);
+    //sort
+    sort(v.rbegin(), v.rend());
+    //remove the last
+    v.pop_back();
+}
+
+void ReadHiScores(std::vector<int> &v)
+{
+    std::ifstream in("hiscores.dat");
+    if(in.good())
+    {
+        std::string str;
+        getline(in,str);
+        std::stringstream ss(str);
+        int n;
+        for(int i=0;i<5;i++)
+        {
+            ss >> n;
+            v.push_back(n);
+        }
+        in.close();
+    }
+    else
+    {
+        //if file does not exist fill with 5 scores
+        for(int i=0;i<5;i++)
+        {
+            v.push_back(0);
+        }
+    }
+}
+
+void WriteHiScores(std::vector<int> &v)
+{
+    std::ofstream out("hiscores.dat");
+    for(int i=0;i<5;i++)
+    {
+        out << v[i] << " ";
+    }
+    out.close();
+}
+
+void Game::update(sf::Time delta)
+{
+    if( state==GAME )
+    {
+        //Game_cycle();
+        if(state==GAME)
+        {
+         for(auto a:entities)
+         {
+            for(auto b:entities)
+            {
+              if (a->name=="asteroid" && b->name=="bullet")
+               if ( isCollide(a,b) )
+                {
+                    a->life=false;
+                    b->life=false;
+
+                    //explosion
+                    Entity *e = new Entity();
+                    e->settings(sExpl,a->x,a->y);
+                    e->name="explosion";
+                    entities.push_back(e);
+                    Explosion.play();
+                    score += 10;
+                }
+
+              if (a->name=="player" && b->name=="asteroid")
+               if ( isCollide(a,b) )
+                {
+                    b->life=false;
+
+                    //ship explosion
+                    Entity *e = new Entity();
+                    e->settings(sExpl,a->x,a->y);
+                    e->name="explosion";
+                    entities.push_back(e);
+                    if(lives==1)
+                        Explosion2.play();
+                    else
                         Explosion.play();
-                        score += 10;
-                    }
-
-                  if (a->name=="player" && b->name=="asteroid")
-                   if ( isCollide(a,b) )
+                    lives--;
+                    if(lives<=0)
                     {
-                        b->life=false;
-
-                        //ship explosion
-                        Entity *e = new Entity();
-                        e->settings(sExpl,a->x,a->y);
-                        e->name="explosion";
-                        entities.push_back(e);
-                        if(lives==1)
-                            Explosion2.play();
-                        else
-                            Explosion.play();
-                        lives--;
-                        if(lives<=0)
-                        {
-                            UpdateHiScores(score);
-                            state=END_GAME;
-                        }
-
-                        //relocate the ship
-                        p->settings(sPlayer,20,85,8);
-                        p->dx=0;
+                        UpdateHiScores(vhiscores, score);
+                        state=END_GAME;
                     }
+
+                    //relocate the ship
+                    p->settings(sPlayer,20,85,8);
+                    p->dx=0;
                 }
+            }
+         }
+
+            for(auto e:entities)
+             if (e->name=="explosion")
+              if (e->anim.isEnd()) e->life=0;
+
+            if (rand()%100==0)
+             {
+               asteroid *a = new asteroid();
+               a->settings(sAster, 640 ,rand()%screenheight, 8);
+               entities.push_back(a);
              }
 
-                for(auto e:entities)
-                 if (e->name=="explosion")
-                  if (e->anim.isEnd()) e->life=0;
-
-                if (rand()%100==0)
-                 {
-                   asteroid *a = new asteroid();
-                   a->settings(sAster, 640 ,rand()%screenheight, 8);
-                   entities.push_back(a);
-                 }
-
-                for(auto i=entities.begin();i!=entities.end();)
-                {
-                  Entity *e = *i;
-
-                  e->update();
-                  e->anim.update();
-
-                  if (e->life==false) {i=entities.erase(i); delete e;}
-                  else i++;
-                }
-
-                //update background
-                bgx++;
-                bgrect.left = bgx;
-                background.setTextureRect(bgrect);
-                if(bgx >= screenwidth) bgx = 0;
-            }
-        }
-
-        //Game_paint();
-        //////draw//////
-        app.draw(background);
-        if(state==MENU)
-        {
-            app.draw(background);
-
-            //Show hi scores
-            std::string histr="SPACE SHOOTER\n  HI-SCORES\n";
-            for(int i=0;i<5;i++)
+            for(auto i=entities.begin();i!=entities.end();)
             {
-                histr = histr + "    " + std::to_string(vhiscores[i]) + "\n";
-            }
-            histr += "PRESS S TO START";
-            Text(app,histr,280.f,20.f,sf::Color::Cyan,24,font);
-        }
+              Entity *e = *i;
 
-        if(state==GAME)
+              e->update(delta);
+              e->anim.update();
+
+              if (e->life==false) {i=entities.erase(i); delete e;}
+              else i++;
+            }
+
+            //update background
+            bgx++;
+            bgrect.left = bgx;
+            background.setTextureRect(bgrect);
+            if(bgx >= screenwidth) bgx = 0;
+        }
+    }
+}
+
+void Game::draw()
+{
+    app.clear();
+    app.draw(background);
+
+    switch(state)
+    {
+    case MENU:
+        {
+        //Show hi scores
+        std::string histr="SPACE SHOOTER\n  HI-SCORES\n";
+        for(int i=0;i<5;i++)
+        {
+            histr = histr + "    " + std::to_string(vhiscores[i]) + "\n";
+        }
+        histr += "PRESS S TO START";
+        Text(app,histr,280.f,20.f,sf::Color::Cyan,24,font);
+        break;
+        }
+    case GAME:
         {
             for(auto i:entities)
                 i->draw(app);
@@ -504,19 +544,47 @@ int main()
             std::string sc = "LIVES: " + std::to_string(lives) + "   SCORE: " + std::to_string(score);
             Text(app,sc,450.f,0.f,sf::Color::Cyan,24,font);
         }
+        break;
+    case END_GAME:
+        Text(app,"GAME OVER",220.f,30.f,sf::Color::Cyan,50,font);
+        Text(app,"PRESS M", 250.f, 100.f, sf::Color::Cyan,25,font);
+        break;
+    default:
+        break;
+    }
+    app.display();
+}
 
-        if(state==END_GAME)
+int main()
+{
+    //the game class
+    Game game;
+
+    //create the main window
+    game.init(640,180,400,200,"SpaceShooter");
+
+    ReadHiScores(game.vhiscores);
+
+    sf::Clock clock;
+    const sf::Time timePerFrame = sf::seconds(1.f/60.f); //60fps
+    sf::Time elapsed = sf::Time::Zero;
+
+    while(game.app.isOpen())
+    {
+        elapsed += clock.restart();
+
+        game.input();
+
+        while( elapsed > timePerFrame )
         {
-            app.draw(background);
-
-            Text(app,"GAME OVER",220.f,30.f,sf::Color::Cyan,50,font);
-            Text(app,"PRESS M", 250.f, 100.f, sf::Color::Cyan,25,font);
+            game.update(elapsed);
+            elapsed -= timePerFrame;
         }
 
-        app.display();
+        game.draw();
     }
 
-    WriteHiScores();
+    WriteHiScores(game.vhiscores);
 
     return EXIT_SUCCESS;
 }
