@@ -206,8 +206,6 @@ void Game::input()
         }
 }
 
-
-
 void Game::update(sf::Time delta)
 {
     if( state==GAME )
@@ -331,4 +329,3 @@ void Game::draw()
     }
     app.display();
 }
-
