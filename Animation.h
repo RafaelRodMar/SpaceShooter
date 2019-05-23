@@ -3,21 +3,21 @@ class Animation
 public:
 	float Frame, speed;
 	sf::Sprite sprite;
-    std::vector<sf::IntRect> frames;
+        std::vector<sf::IntRect> frames;
 
 	Animation(){}
 
-    Animation (sf::Texture &t, int x, int y, int w, int h, int count, float Speed)
+        Animation (sf::Texture &t, int x, int y, int w, int h, int count, float Speed)
 	{
 	    Frame = 0;
-        speed = Speed;
+            speed = Speed;
 
-		for (int i=0;i<count;i++)
-         frames.push_back( sf::IntRect(x+i*w, y, w, h)  );
+	    for (int i=0;i<count;i++)
+            	frames.push_back( sf::IntRect(x+i*w, y, w, h)  );
 
-		sprite.setTexture(t);
-		sprite.setOrigin(w/2,h/2);
-        sprite.setTextureRect(frames[0]);
+	    sprite.setTexture(t);
+	    sprite.setOrigin(w/2,h/2);
+	    sprite.setTextureRect(frames[0]);
 	}
 
 	void init(sf::Texture &t, int x, int y, int w, int h, int count, float Speed)

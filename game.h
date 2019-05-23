@@ -264,10 +264,10 @@ void Game::update(sf::Time delta)
              if (e->name=="explosion")
               if (e->anim.isEnd()) e->life=0;
 
-            if ( rand()%100 == 0 )
+            if ( rnd.getRndInt(0,100) <= 1 )
              {
                asteroid *a = new asteroid();
-               a->settings(sAster, 640 , rand()%screenheight, 8);
+               a->settings(sAster, 640 , rnd.getRndInt(0,screenheight), 8);
                entities.push_back(a);
              }
 
